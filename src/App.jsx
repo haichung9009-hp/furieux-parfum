@@ -1,5 +1,11 @@
 import React, { useState, useMemo } from "react";
 import { ShoppingBag, X, Plus, Minus, Check, ArrowRight } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+/* ---------- Supabase ---------- */
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 /* ---------- Data ---------- */
 
@@ -154,6 +160,8 @@ export default function App() {
   const [step, setStep] = useState("shop");
   const [form, setForm] = useState({ name: "", phone: "", address: "", payment: "cod" });
   const [orderId, setOrderId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [orderError, setOrderError] = useState("");
 
   const productById = (id) => PRODUCTS.find((p) => p.id === id);
 
@@ -182,9 +190,33 @@ export default function App() {
   );
   const cartCount = cart.reduce((n, i) => n + i.qty, 0);
 
-  const placeOrder = (e) => {
+  const placeOrder = async (e) => {
     e.preventDefault();
-    setOrderId("FX" + Math.floor(100000 + Math.random() * 900000));
+    setOrderError("");
+    const code = "FX" + Math.floor(100000 + Math.random() * 900000);
+
+    if (supabase) {
+      setSubmitting(true);
+      const { error } = await supabase.from("orders").insert({
+        order_code: code,
+        customer_name: form.name,
+        phone: form.phone,
+        address: form.address,
+        payment_method: form.payment,
+        items: cart.map((i) => {
+          const p = productById(i.productId);
+          return { name: p.name, ml: i.ml, qty: i.qty, price: priceFor(p, i.ml) };
+        }),
+        subtotal,
+      });
+      setSubmitting(false);
+      if (error) {
+        setOrderError("Không gửi được đơn hàng, vui lòng thử lại.");
+        return;
+      }
+    }
+
+    setOrderId(code);
     setStep("done");
     setCart([]);
   };
@@ -489,8 +521,9 @@ export default function App() {
                 </div>
                 <div className="cart-footer">
                   <div className="cart-subtotal"><span>Tổng cộng</span><span>{money(subtotal)}</span></div>
-                  <button type="submit" className="fx-btn" style={{width:"100%", justifyContent:"center"}}>
-                    Xác nhận đặt hàng
+                  {orderError && <div style={{color:"var(--coral)", fontSize:13, fontWeight:600, marginBottom:12}}>{orderError}</div>}
+                  <button type="submit" disabled={submitting} className="fx-btn" style={{width:"100%", justifyContent:"center", opacity:submitting?0.6:1}}>
+                    {submitting ? "Đang gửi..." : "Xác nhận đặt hàng"}
                   </button>
                 </div>
               </form>
@@ -501,9 +534,11 @@ export default function App() {
                 <div className="done-icon"><Check size={24} /></div>
                 <div>Cảm ơn bạn đã chọn FURIEUX.</div>
                 <div className="done-id">#{orderId}</div>
-                <p style={{fontSize:13, marginBottom:26, opacity:0.7, fontWeight:500}}>
-                  Đây là bản demo — không có giao dịch thật nào được thực hiện.
-                </p>
+                {!supabase && (
+                  <p style={{fontSize:13, marginBottom:26, opacity:0.7, fontWeight:500}}>
+                    Đây là bản demo — không có giao dịch thật nào được thực hiện.
+                  </p>
+                )}
                 <button className="fx-btn" onClick={() => { setCartOpen(false); setStep("shop"); }}>
                   Tiếp tục xem bộ sưu tập
                 </button>
