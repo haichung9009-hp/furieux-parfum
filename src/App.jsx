@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { ShoppingBag, X, Plus, Minus, Check, ArrowRight } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -7,100 +7,28 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
-/* ---------- Data ---------- */
+/* ---------- Color themes (chọn 1 trong các tên này ở cột "theme") ---------- */
+const THEMES = {
+  coral: { from: "#FFAE8C", to: "#FF5B3D", dark: "#B33017" },
+  lime: { from: "#DBF8A6", to: "#A9E22F", dark: "#5C7E12" },
+  magenta: { from: "#FFB4D6", to: "#E63888", dark: "#951C58" },
+  cobalt: { from: "#9FB2FF", to: "#2A3FD6", dark: "#141F7A" },
+  amber: { from: "#FFE29B", to: "#FFB020", dark: "#B3760A" },
+  violet: { from: "#D7C0FF", to: "#7A3EFF", dark: "#3F1C99" },
+};
+const themeFor = (name) => THEMES[name] || THEMES.coral;
 
-const PRODUCTS = [
-  {
-    id: "wildfire",
-    name: "WILDFIRE",
-    family: "Gỗ cay lửa",
-    story: "Bùng lên như tia lửa đầu tiên trong đêm hội.",
-    from: "#FFAE8C",
-    to: "#FF5B3D",
-    dark: "#B33017",
-    price: 1690000,
-    notes: {
-      top: ["Ớt hồng", "Cam Ý"],
-      heart: ["Hoắc hương", "Nhài đen"],
-      base: ["Tuyết tùng", "Xạ hương ấm"],
-    },
-  },
-  {
-    id: "neon-riot",
-    name: "NEON RIOT",
-    family: "Xanh cỏ điện",
-    story: "Cú sốc mát lạnh giữa đám đông rực rỡ.",
-    from: "#DBF8A6",
-    to: "#A9E22F",
-    dark: "#5C7E12",
-    price: 1450000,
-    notes: {
-      top: ["Bạc hà", "Lá me chua"],
-      heart: ["Violet xanh", "Trà xanh"],
-      base: ["Vetiver", "Xạ hương trắng"],
-    },
-  },
-  {
-    id: "velvet-venom",
-    name: "VELVET VENOM",
-    family: "Hoa độc quyến rũ",
-    story: "Ngọt ngào có chủ đích, nguy hiểm có tính toán.",
-    from: "#FFB4D6",
-    to: "#E63888",
-    dark: "#951C58",
-    price: 1890000,
-    notes: {
-      top: ["Lý gai", "Hồng tiêu"],
-      heart: ["Mẫu đơn đen", "Hoa nhài"],
-      base: ["Da thuộc", "Hổ phách"],
-    },
-  },
-  {
-    id: "midnight-cobalt",
-    name: "MIDNIGHT COBALT",
-    family: "Gỗ biển đêm",
-    story: "Bến cảng lúc 2 giờ sáng, gió lạnh và im lặng.",
-    from: "#9FB2FF",
-    to: "#2A3FD6",
-    dark: "#141F7A",
-    price: 1790000,
-    notes: {
-      top: ["Bưởi lạnh", "Gừng"],
-      heart: ["Oải hương biển", "Hương thảo"],
-      base: ["Ambroxan", "Xạ hương xanh"],
-    },
-  },
-  {
-    id: "solar-rage",
-    name: "SOLAR RAGE",
-    family: "Hổ phách rực lửa",
-    story: "Nắng gắt cuối hè, không chịu tắt.",
-    from: "#FFE29B",
-    to: "#FFB020",
-    dark: "#B3760A",
-    price: 1990000,
-    notes: {
-      top: ["Bergamot", "Nghệ tây"],
-      heart: ["Hoa cam", "Quế"],
-      base: ["Hổ phách", "Vani khói"],
-    },
-  },
-  {
-    id: "acid-bloom",
-    name: "ACID BLOOM",
-    family: "Hoa nổi loạn",
-    story: "Một bó hoa ném thẳng vào quy tắc.",
-    from: "#D7C0FF",
-    to: "#7A3EFF",
-    dark: "#3F1C99",
-    price: 1590000,
-    notes: {
-      top: ["Chanh dây", "Hồng tiêu"],
-      heart: ["Diên vĩ", "Hồng đen"],
-      base: ["Musk trắng", "Đàn hương"],
-    },
-  },
+/* ---------- Dùng khi chưa nối Supabase (xem thử ở máy) ---------- */
+const FALLBACK_PRODUCTS = [
+  { id: "wildfire", name: "WILDFIRE", family: "Gỗ cay lửa", story: "Bùng lên như tia lửa đầu tiên trong đêm hội.",
+    theme: "coral", price: 1690000, notes_top: "Ớt hồng, Cam Ý", notes_heart: "Hoắc hương, Nhài đen", notes_base: "Tuyết tùng, Xạ hương ấm" },
+  { id: "neon-riot", name: "NEON RIOT", family: "Xanh cỏ điện", story: "Cú sốc mát lạnh giữa đám đông rực rỡ.",
+    theme: "lime", price: 1450000, notes_top: "Bạc hà, Lá me chua", notes_heart: "Violet xanh, Trà xanh", notes_base: "Vetiver, Xạ hương trắng" },
+  { id: "velvet-venom", name: "VELVET VENOM", family: "Hoa độc quyến rũ", story: "Ngọt ngào có chủ đích, nguy hiểm có tính toán.",
+    theme: "magenta", price: 1890000, notes_top: "Lý gai, Hồng tiêu", notes_heart: "Mẫu đơn đen, Hoa nhài", notes_base: "Da thuộc, Hổ phách" },
 ];
+
+const splitNotes = (str) => (str || "").split(",").map((s) => s.trim()).filter(Boolean);
 
 const SIZES = [
   { ml: 30, mult: 0.68 },
@@ -111,33 +39,53 @@ const SIZES = [
 const money = (n) => Math.round(n).toLocaleString("vi-VN") + "\u20ab";
 const priceFor = (product, ml) => {
   const s = SIZES.find((s) => s.ml === ml);
-  return Math.round((product.price * s.mult) / 1000) * 1000;
+  return Math.round((Number(product.price) * s.mult) / 1000) * 1000;
 };
 
 /* ---------- Visual bits ---------- */
 
-function Bottle({ product, size = 100, tilt = 14, mono }) {
-  const gid = `grad-${product.id}-${size}-${mono ? "m" : "c"}`;
+function BrandMark({ size = 30 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" style={{ transform: `rotate(${tilt}deg)` }}>
+    <svg width={size} height={size} viewBox="0 0 40 40" style={{ transform: "rotate(14deg)" }}>
       <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={mono ? "#ffffff" : product.from} />
-          <stop offset="100%" stopColor={mono ? "#ffffff" : product.to} />
+        <linearGradient id="brandGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#FF5B3D" />
+          <stop offset="100%" stopColor="#7A3EFF" />
         </linearGradient>
       </defs>
-      <g>
-        <rect x="33" y="4" width="22" height="13" rx="6" fill={mono ? "var(--cream)" : product.dark} opacity="0.9" />
-        <rect x="38" y="15" width="12" height="9" rx="3" fill={mono ? "var(--cream)" : product.dark} opacity="0.7" />
-        <rect x="20" y="22" width="48" height="64" rx="20" fill={`url(#${gid})`} />
-        <ellipse cx="34" cy="34" rx="7" ry="12" fill="#fff" opacity="0.35" />
-        <rect x="32" y="44" width="24" height="24" rx="9" fill={mono ? product.to : "#fff"} opacity={mono ? 1 : 0.85} />
-      </g>
+      <rect x="13" y="2" width="14" height="8" rx="4" fill="#2B2140" opacity="0.85" />
+      <rect x="8" y="9" width="24" height="28" rx="10" fill="url(#brandGrad)" />
+      <ellipse cx="15" cy="17" rx="3" ry="5" fill="#fff" opacity="0.35" />
     </svg>
   );
 }
 
-function Pyramid({ notes, product, ink = false }) {
+function ProductImage({ product, theme, size = 90, radius = 20 }) {
+  if (product.image_url) {
+    return (
+      <img
+        src={product.image_url}
+        alt={product.name}
+        style={{ width: size, height: size, objectFit: "cover", borderRadius: radius, boxShadow: "0 8px 20px rgba(43,33,64,0.25)" }}
+      />
+    );
+  }
+  return (
+    <div
+      style={{
+        width: size, height: size, borderRadius: radius,
+        background: `linear-gradient(135deg, ${theme.from}, ${theme.to})`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontFamily: "'Baloo 2'", fontWeight: 800, fontSize: size * 0.36, color: "#fff",
+        boxShadow: "0 8px 20px rgba(43,33,64,0.2)",
+      }}
+    >
+      {product.name?.[0] || "?"}
+    </div>
+  );
+}
+
+function Pyramid({ notes, theme, ink = false }) {
   const rows = [
     { label: "Hương đầu", items: notes.top, w: 38 },
     { label: "Hương giữa", items: notes.heart, w: 66 },
@@ -152,13 +100,13 @@ function Pyramid({ notes, product, ink = false }) {
               className="pyramid-bar"
               style={{
                 width: `${r.w}%`,
-                background: ink ? `linear-gradient(90deg, ${product.from}, ${product.to})` : "rgba(255,255,255,0.85)",
+                background: ink ? `linear-gradient(90deg, ${theme.from}, ${theme.to})` : "rgba(255,255,255,0.85)",
               }}
             />
           </div>
           <div className="pyramid-text">
-            <span className="pyramid-label" style={{ color: ink ? product.dark : "#fff" }}>{r.label}</span>
-            <span className="pyramid-items" style={{ color: ink ? "var(--ink)" : "#fff" }}>{r.items.join(" · ")}</span>
+            <span className="pyramid-label" style={{ color: ink ? theme.dark : "#fff" }}>{r.label}</span>
+            <span className="pyramid-items" style={{ color: ink ? "var(--ink)" : "#fff" }}>{r.items.join(" · ") || "—"}</span>
           </div>
         </div>
       ))}
@@ -169,6 +117,8 @@ function Pyramid({ notes, product, ink = false }) {
 /* ---------- Main App ---------- */
 
 export default function App() {
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -179,7 +129,25 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false);
   const [orderError, setOrderError] = useState("");
 
-  const productById = (id) => PRODUCTS.find((p) => p.id === id);
+  useEffect(() => {
+    if (!supabase) {
+      setProducts(FALLBACK_PRODUCTS);
+      setLoadingProducts(false);
+      return;
+    }
+    supabase
+      .from("products")
+      .select("*")
+      .eq("active", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true })
+      .then(({ data, error }) => {
+        if (!error && data) setProducts(data);
+        setLoadingProducts(false);
+      });
+  }, []);
+
+  const productById = (id) => products.find((p) => p.id === id);
 
   const addToCart = (product, ml) => {
     const key = `${product.id}-${ml}`;
@@ -202,7 +170,7 @@ export default function App() {
 
   const subtotal = useMemo(
     () => cart.reduce((sum, i) => sum + priceFor(productById(i.productId), i.ml) * i.qty, 0),
-    [cart]
+    [cart, products]
   );
   const cartCount = cart.reduce((n, i) => n + i.qty, 0);
 
@@ -254,10 +222,9 @@ export default function App() {
 
         @keyframes floaty { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-14px) rotate(4deg); } }
         @keyframes floaty2 { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(12px) rotate(-6deg); } }
-        @keyframes wiggle { 0%,100% { transform: rotate(var(--tilt,14deg)); } 50% { transform: rotate(calc(var(--tilt,14deg) - 10deg)); } }
-        @media (prefers-reduced-motion: reduce) { .fx-float, .fx-float2, .fx-card:hover .fx-bottle { animation: none !important; } }
+        @keyframes wiggle { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+        @media (prefers-reduced-motion: reduce) { .fx-float, .fx-float2 { animation: none !important; } }
 
-        /* header */
         .fx-header { display:flex; align-items:center; justify-content:space-between; padding:16px 5vw;
           position:sticky; top:0; z-index:30; background:rgba(255,251,245,0.86); backdrop-filter:blur(10px); }
         .fx-logo { display:flex; align-items:center; gap:10px; }
@@ -272,7 +239,6 @@ export default function App() {
         .fx-cart-btn:hover { transform:scale(1.08) rotate(-4deg); }
         .fx-cart-count { position:absolute; top:-6px; right:-6px; background:var(--ink); color:#fff; font-size:10px; width:19px; height:19px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid var(--cream); font-weight:800; }
 
-        /* hero */
         .fx-hero { position:relative; padding:8vh 5vw 10vh; overflow:hidden; }
         .fx-hero-blob { position:absolute; border-radius:50%; filter:blur(2px); opacity:0.55; z-index:0; }
         .fx-hero-title { font-size:clamp(44px,9vw,120px); line-height:0.92; position:relative; z-index:2; margin:0; color:var(--ink); }
@@ -284,28 +250,26 @@ export default function App() {
           display:inline-flex; align-items:center; gap:10px; transition:transform .2s, box-shadow .2s; box-shadow:0 8px 20px rgba(230,56,136,0.3); }
         .fx-btn:hover { transform:translateY(-3px) scale(1.02); box-shadow:0 12px 26px rgba(230,56,136,0.4); }
         .fx-btn:active { transform:scale(0.97); }
-        .fx-bottles { position:absolute; z-index:1; }
         .fx-float { animation: floaty 5s ease-in-out infinite; }
         .fx-float2 { animation: floaty2 6s ease-in-out infinite; }
 
-        /* collection */
         .fx-section-head { padding:56px 5vw 28px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px; }
         .fx-section-title { font-size:clamp(28px,4vw,44px); color:var(--ink); }
         .fx-section-note { font-size:13px; font-weight:700; max-width:240px; text-align:right; opacity:0.7; }
 
-        .fx-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:18px; padding:0 5vw; margin-bottom:12vh; }
+        .fx-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:18px; padding:0 5vw; margin-bottom:12vh; min-height:120px; }
+        .fx-empty { padding:40px; text-align:center; font-weight:700; opacity:0.5; grid-column:1/-1; }
         .fx-card { border-radius:var(--r-lg); padding:28px 22px; cursor:pointer; position:relative; overflow:hidden;
           display:flex; flex-direction:column; align-items:center; text-align:center; color:#fff;
           transition:transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s; min-height:330px; box-shadow:0 10px 24px rgba(43,33,64,0.12); }
         .fx-card:hover { transform:translateY(-8px) rotate(-1.5deg) scale(1.02); box-shadow:0 20px 34px rgba(43,33,64,0.22); }
-        .fx-card:hover .fx-bottle { animation: wiggle 0.7s ease-in-out infinite; }
+        .fx-card:hover .fx-card-img { animation: wiggle 0.7s ease-in-out infinite; }
         .fx-card-fam { font-size:11px; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; opacity:0.9; margin-bottom:10px; }
         .fx-card-name { font-family:'Baloo 2'; font-weight:800; font-size:24px; margin:12px 0 6px; }
         .fx-card-price { font-size:13px; font-weight:700; margin-bottom:16px; }
         .fx-card-pyramid { opacity:0; transform:translateY(8px); transition:opacity .3s, transform .3s; width:100%; margin-top:auto; }
         .fx-card:hover .fx-card-pyramid { opacity:1; transform:translateY(0); }
 
-        /* pyramid */
         .pyramid { display:flex; flex-direction:column; gap:8px; width:100%; }
         .pyramid-row { display:flex; align-items:center; gap:8px; }
         .pyramid-bar-wrap { width:54px; flex-shrink:0; }
@@ -316,7 +280,6 @@ export default function App() {
 
         .fx-footer { padding:36px 5vw; display:flex; justify-content:space-between; font-size:12px; font-weight:700; flex-wrap:wrap; gap:10px; opacity:0.6; }
 
-        /* overlays */
         .fx-overlay { position:fixed; inset:0; background:rgba(43,33,64,0.45); backdrop-filter:blur(2px); z-index:40; }
         .fx-modal { position:fixed; z-index:50; background:var(--cream); top:0; bottom:0; right:0; width:min(430px,100%);
           border-radius:var(--r-lg) 0 0 var(--r-lg); box-shadow:-16px 0 40px rgba(43,33,64,0.2); display:flex; flex-direction:column; animation:slidein .3s cubic-bezier(.34,1.56,.64,1); }
@@ -365,7 +328,7 @@ export default function App() {
       {/* header */}
       <header className="fx-header">
         <div className="fx-logo">
-          <Bottle product={PRODUCTS[2]} size={30} tilt={16} />
+          <BrandMark size={30} />
           <div className="fx-logo-word">FURIEUX</div>
           <div className="fx-logo-parfum">PARFUM</div>
         </div>
@@ -385,15 +348,6 @@ export default function App() {
         <div className="fx-hero-blob fx-float" style={{width:280,height:280,background:"radial-gradient(circle,var(--lime),transparent 70%)",top:-80,right:"6%"}} />
         <div className="fx-hero-blob fx-float2" style={{width:180,height:180,background:"radial-gradient(circle,var(--magenta),transparent 70%)",bottom:0,right:"24%"}} />
         <div className="fx-hero-blob fx-float" style={{width:140,height:140,background:"radial-gradient(circle,var(--cobalt),transparent 70%)",top:140,right:"0%"}} />
-        <div className="fx-bottles fx-float" style={{top:40,right:"16%"}}>
-          <Bottle product={PRODUCTS[4]} size={72} tilt={20} />
-        </div>
-        <div className="fx-bottles fx-float2" style={{top:210,right:"5%"}}>
-          <Bottle product={PRODUCTS[5]} size={64} tilt={-24} />
-        </div>
-        <div className="fx-bottles fx-float">
-          <Bottle product={PRODUCTS[0]} size={96} tilt={-16} />
-        </div>
 
         <h1 className="fx-hero-title fx-display">
           <span>MÙI HƯƠNG</span>
@@ -416,24 +370,32 @@ export default function App() {
         <div className="fx-section-note">Mỗi chai một màu, một cá tính. Di chuột để xem tháp hương.</div>
       </div>
       <div className="fx-grid">
-        {PRODUCTS.map((p) => (
-          <div
-            className="fx-card"
-            key={p.id}
-            style={{ background: `linear-gradient(135deg, ${p.from}, ${p.to})` }}
-            onClick={() => { setSelected(p); setSelectedMl(50); }}
-          >
-            <div className="fx-card-fam">{p.family}</div>
-            <div className="fx-bottle" style={{ "--tilt": "14deg" }}>
-              <Bottle product={p} size={90} tilt={14} mono />
+        {loadingProducts && <div className="fx-empty">Đang tải sản phẩm...</div>}
+        {!loadingProducts && products.length === 0 && (
+          <div className="fx-empty">Chưa có sản phẩm nào. Thêm sản phẩm trong bảng "products" trên Supabase nhé.</div>
+        )}
+        {products.map((p) => {
+          const theme = themeFor(p.theme);
+          const notes = { top: splitNotes(p.notes_top), heart: splitNotes(p.notes_heart), base: splitNotes(p.notes_base) };
+          return (
+            <div
+              className="fx-card"
+              key={p.id}
+              style={{ background: `linear-gradient(135deg, ${theme.from}, ${theme.to})` }}
+              onClick={() => { setSelected(p); setSelectedMl(50); }}
+            >
+              <div className="fx-card-fam">{p.family}</div>
+              <div className="fx-card-img">
+                <ProductImage product={p} theme={theme} size={90} radius={20} />
+              </div>
+              <div className="fx-card-name">{p.name}</div>
+              <div className="fx-card-price">{money(priceFor(p, 50))} · 50ml</div>
+              <div className="fx-card-pyramid">
+                <Pyramid notes={notes} theme={theme} />
+              </div>
             </div>
-            <div className="fx-card-name">{p.name}</div>
-            <div className="fx-card-price">{money(priceFor(p, 50))} · 50ml</div>
-            <div className="fx-card-pyramid">
-              <Pyramid notes={p.notes} product={p} />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <footer className="fx-footer">
@@ -442,45 +404,49 @@ export default function App() {
       </footer>
 
       {/* product modal */}
-      {selected && (
-        <>
-          <div className="fx-overlay" onClick={() => setSelected(null)} />
-          <div className="fx-product-modal">
-            <button
-              className="fx-modal-close"
-              style={{ position:"absolute", top:18, right:18, zIndex:2, background:"#fff" }}
-              onClick={() => setSelected(null)}
-            >
-              <X size={18} />
-            </button>
-            <div className="fx-pm-visual" style={{ background: `linear-gradient(135deg, ${selected.from}, ${selected.to})` }}>
-              <Bottle product={selected} size={200} tilt={12} mono />
-            </div>
-            <div className="fx-pm-info">
-              <div className="fx-pm-fam" style={{color:selected.dark}}>{selected.family}</div>
-              <h2 className="fx-pm-name fx-display">{selected.name}</h2>
-              <p className="fx-pm-story">{selected.story}</p>
-              <Pyramid notes={selected.notes} product={selected} ink />
-              <div style={{height:22}} />
-              <div className="fx-size-row">
-                {SIZES.map((s) => (
-                  <button key={s.ml} className={`fx-size-btn ${selectedMl === s.ml ? "active" : ""}`} onClick={() => setSelectedMl(s.ml)}>
-                    {s.ml}ml
-                  </button>
-                ))}
-              </div>
-              <div className="fx-pm-price">{money(priceFor(selected, selectedMl))}</div>
+      {selected && (() => {
+        const theme = themeFor(selected.theme);
+        const notes = { top: splitNotes(selected.notes_top), heart: splitNotes(selected.notes_heart), base: splitNotes(selected.notes_base) };
+        return (
+          <>
+            <div className="fx-overlay" onClick={() => setSelected(null)} />
+            <div className="fx-product-modal">
               <button
-                className="fx-btn"
-                style={{ width:"100%", justifyContent:"center", background:`linear-gradient(135deg, ${selected.from}, ${selected.to})`, boxShadow:"none" }}
-                onClick={() => addToCart(selected, selectedMl)}
+                className="fx-modal-close"
+                style={{ position:"absolute", top:18, right:18, zIndex:2, background:"#fff" }}
+                onClick={() => setSelected(null)}
               >
-                Thêm vào giỏ <ShoppingBag size={16} />
+                <X size={18} />
               </button>
+              <div className="fx-pm-visual" style={{ background: `linear-gradient(135deg, ${theme.from}, ${theme.to})` }}>
+                <ProductImage product={selected} theme={theme} size={200} radius={32} />
+              </div>
+              <div className="fx-pm-info">
+                <div className="fx-pm-fam" style={{color:theme.dark}}>{selected.family}</div>
+                <h2 className="fx-pm-name fx-display">{selected.name}</h2>
+                <p className="fx-pm-story">{selected.story}</p>
+                <Pyramid notes={notes} theme={theme} ink />
+                <div style={{height:22}} />
+                <div className="fx-size-row">
+                  {SIZES.map((s) => (
+                    <button key={s.ml} className={`fx-size-btn ${selectedMl === s.ml ? "active" : ""}`} onClick={() => setSelectedMl(s.ml)}>
+                      {s.ml}ml
+                    </button>
+                  ))}
+                </div>
+                <div className="fx-pm-price">{money(priceFor(selected, selectedMl))}</div>
+                <button
+                  className="fx-btn"
+                  style={{ width:"100%", justifyContent:"center", background:`linear-gradient(135deg, ${theme.from}, ${theme.to})`, boxShadow:"none" }}
+                  onClick={() => addToCart(selected, selectedMl)}
+                >
+                  Thêm vào giỏ <ShoppingBag size={16} />
+                </button>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* cart drawer */}
       {cartOpen && (
@@ -504,10 +470,12 @@ export default function App() {
                   {cart.length === 0 && <div className="cart-empty">Giỏ hàng của bạn đang trống.</div>}
                   {cart.map((i) => {
                     const p = productById(i.productId);
+                    if (!p) return null;
+                    const theme = themeFor(p.theme);
                     return (
                       <div className="cart-item" key={i.key}>
-                        <div style={{background:`linear-gradient(135deg, ${p.from}, ${p.to})`, padding:6, borderRadius:14}}>
-                          <Bottle product={p} size={44} tilt={12} mono />
+                        <div style={{background:`linear-gradient(135deg, ${theme.from}, ${theme.to})`, padding:6, borderRadius:14}}>
+                          <ProductImage product={p} theme={theme} size={44} radius={10} />
                         </div>
                         <div style={{flex:1}}>
                           <div className="cart-item-name">{p.name}</div>
